@@ -212,6 +212,19 @@ const EventCreationWizard = ({
         return;
       }
 
+      console.log("Trying to create event with data:", {
+        user_id: user.id,
+        title: eventData.basicDetails.title,
+        description: eventData.basicDetails.description,
+        date: eventData.basicDetails.date.toISOString(),
+        time: eventData.basicDetails.startTime,
+        end_date: eventData.basicDetails.endTime || null,
+        location: eventData.basicDetails.location,
+        max_capacity: eventData.basicDetails.maxCapacity,
+        image_url: eventData.basicDetails.bannerImage || null,
+        type: eventData.type,
+      });
+
       // Criar o evento
       const { data: event, error: eventError } = await supabase
         .from("events")
@@ -234,6 +247,12 @@ const EventCreationWizard = ({
 
       if (eventError) {
         console.error("Error creating event:", eventError);
+        console.error("Error details:", {
+          code: eventError.code,
+          message: eventError.message,
+          details: eventError.details,
+          hint: eventError.hint
+        });
         return;
       }
 
@@ -253,6 +272,12 @@ const EventCreationWizard = ({
 
       if (settingsError) {
         console.error("Error creating event settings:", settingsError);
+        console.error("Settings error details:", {
+          code: settingsError.code,
+          message: settingsError.message,
+          details: settingsError.details,
+          hint: settingsError.hint
+        });
         return;
       }
 
@@ -260,6 +285,13 @@ const EventCreationWizard = ({
       navigate(`/events/${event.id}`);
     } catch (error) {
       console.error("Error in createEvent:", error);
+      if (error instanceof Error) {
+        console.error("Error details:", {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
     }
   };
 
@@ -284,32 +316,41 @@ const EventCreationWizard = ({
 
   const handleBasicDetailsSubmit = (values: any) => {
     console.log("Basic details values:", values);
+    console.log("Basic details date type:", typeof values.date, values.date instanceof Date);
     
-    setEventData((prev) => ({
-      ...prev,
-      basicDetails: {
-        title: values.title,
-        description: values.description,
-        date: values.date,
-        startTime: values.startTime,
-        endTime: values.endTime,
-        location: values.location,
-        maxCapacity: values.maxCapacity,
-        bannerImage: values.bannerImage,
-      },
-      customization: {
-        ...prev.customization,
-        date: values.date,
-        startTime: values.startTime,
-        endTime: values.endTime,
-        location: values.location,
-        maxCapacity: values.maxCapacity,
-      },
-      saveTheDate: values.saveTheDate || {
-        deadline: "",
-        message: "",
-      },
-    }));
+    // Garantir que a data é um objeto Date
+    const date = values.date instanceof Date ? values.date : new Date(values.date);
+    
+    setEventData((prev) => {
+      const newData = {
+        ...prev,
+        basicDetails: {
+          title: values.title,
+          description: values.description,
+          date: date,
+          startTime: values.startTime,
+          endTime: values.endTime,
+          location: values.location,
+          maxCapacity: values.maxCapacity,
+          bannerImage: values.bannerImage,
+        },
+        customization: {
+          ...prev.customization,
+          date: date,
+          startTime: values.startTime,
+          endTime: values.endTime,
+          location: values.location,
+          maxCapacity: values.maxCapacity,
+        },
+        saveTheDate: values.saveTheDate || {
+          deadline: "",
+          message: "",
+        },
+      };
+      
+      console.log("Updated event data:", newData);
+      return newData;
+    });
 
     console.log("Moving to next step");
     setStep(3);

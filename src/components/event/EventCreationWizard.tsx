@@ -212,7 +212,13 @@ const EventCreationWizard = ({
         return;
       }
 
-      console.log("Trying to create event with data:", {
+      // Validar dados obrigatórios
+      if (!eventData.basicDetails.title || !eventData.basicDetails.startTime) {
+        console.error("Missing required fields");
+        return;
+      }
+
+      const eventToCreate = {
         user_id: user.id,
         title: eventData.basicDetails.title,
         description: eventData.basicDetails.description,
@@ -222,26 +228,18 @@ const EventCreationWizard = ({
         location: eventData.basicDetails.location,
         max_capacity: eventData.basicDetails.maxCapacity,
         image_url: eventData.basicDetails.bannerImage || null,
-        type: eventData.type,
-      });
+        event_type: eventData.type,
+        is_private: false,
+        created_by: user.id,
+        is_temporary: false,
+      };
+
+      console.log("Trying to create event with data:", eventToCreate);
 
       // Criar o evento
       const { data: event, error: eventError } = await supabase
         .from("events")
-        .insert([
-          {
-            user_id: user.id,
-            title: eventData.basicDetails.title,
-            description: eventData.basicDetails.description,
-            date: eventData.basicDetails.date.toISOString(),
-            time: eventData.basicDetails.startTime,
-            end_date: eventData.basicDetails.endTime || null,
-            location: eventData.basicDetails.location,
-            max_capacity: eventData.basicDetails.maxCapacity,
-            image_url: eventData.basicDetails.bannerImage || null,
-            type: eventData.type,
-          },
-        ])
+        .insert([eventToCreate])
         .select()
         .single();
 

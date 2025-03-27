@@ -12,34 +12,25 @@ if (process.env.TEMPO === "true") {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // Ensure base URL is set correctly for production
-  base:
-    process.env.NODE_ENV === "production"
-      ? process.env.VITE_BASE_PATH || "/"
-      : "/",
-  build: {
-    // Output directory that will contain your built files
-    outDir: "dist",
-    // Clean the output directory before building
-    emptyOutDir: true,
-  },
-  base:
-    process.env.NODE_ENV === "development"
-      ? "/"
-      : process.env.VITE_BASE_PATH || "/",
-  optimizeDeps: {
-    entries: ["src/main.tsx", "src/tempobook/**/*"],
-  },
   plugins: [
     react({
       plugins: conditionalPlugins,
     }),
     tempo(),
   ],
+  base: "/",
   resolve: {
     preserveSymlinks: true,
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  server: {
+    port: 5173,
+    host: true,
+  },
+  build: {
+    outDir: "dist",
+    sourcemap: true,
   },
 });

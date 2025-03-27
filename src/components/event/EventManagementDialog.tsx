@@ -36,6 +36,7 @@ export default function EventManagementDialog({
   open,
   onOpenChange,
   event,
+  onSave,
 }: EventManagementDialogProps) {
   const [showAddCoOrganizer, setShowAddCoOrganizer] = useState(false);
   const [coOrganizers, setCoOrganizers] = useState([]);

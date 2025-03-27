@@ -1,0 +1,74 @@
+# Projeto Konvite - Documento de Requisitos
+
+## Visão Geral
+O Konvite é uma plataforma para criação e gerenciamento de eventos que permite aos organizadores criar eventos, enviar convites e gerenciar convidados de forma intuitiva e eficiente. A plataforma visa simplificar todo o processo, desde a criação até o acompanhamento de confirmações de presença.
+
+## Objetivos Principais
+- Simplificar a criação e gerenciamento de eventos sociais e corporativos
+- Facilitar o processo de envio de convites e rastreamento de confirmações
+- Proporcionar uma experiência fluida para convidados ao responderem aos convites
+- Oferecer métricas e insights para organizadores sobre seus eventos
+
+## Principais Funcionalidades
+
+### 1. Criação de Eventos
+- Seleção de tipo de evento (aniversário, corporativo, temático)
+- Personalização com dados básicos (título, descrição, data, hora, local)
+- Opção de privacidade (público/privado)
+- Upload de banner/imagem do evento
+- Configurações adicionais (capacidade máxima, deadline de RSVP)
+- Adição de co-organizadores (até 5 por evento)
+
+### 2. Gerenciamento de Convidados
+- Adição individual de convidados
+- Importação de listas de convidados
+- Envio de convites por diferentes canais (WhatsApp, email, link)
+- Visualização do status de confirmação dos convidados
+- Funcionalidade "Save the Date" com lembretes
+
+### 3. Experiência do Convidado
+- Fluxo de confirmação de presença (Sim/Talvez/Não)
+- Respostas personalizadas para cada tipo de confirmação
+- Integração com calendários (Google, Apple)
+- Envio de mensagens ao organizador
+- Possibilidade de alterar status após confirmação inicial
+
+### 4. Comunicação
+- Templates de mensagens personalizáveis
+- Envio de comunicados para todos os convidados
+- Filtragem por status (todos/confirmados/pendentes)
+- Lembretes automáticos
+- Notificações de alterações no evento
+
+### 5. Analytics e Métricas
+- Visualização em tempo real de confirmações
+- Estatísticas de presença (confirmados, talvez, recusados)
+- Total de pessoas esperadas (incluindo acompanhantes)
+- Contagem regressiva para o evento
+
+## Fluxos Principais
+
+### Fluxo do Organizador
+1. Criar evento e personalizar detalhes
+2. Adicionar convidados e enviar convites
+3. Acompanhar confirmações e gerenciar evento
+4. Enviar comunicados e lembretes
+
+### Fluxo do Convidado
+1. Receber convite via link, email ou WhatsApp
+2. Acessar página do evento e visualizar detalhes
+3. Confirmar presença (Sim/Talvez/Não)
+4. Receber confirmação e adicionar ao calendário
+5. Receber lembretes próximo à data do evento
+
+## Requisitos Técnicos
+- Frontend: React com TypeScript
+- Backend: Supabase para autenticação e banco de dados
+- Integração com APIs de calendário e WhatsApp
+
+## Próximos Passos
+1. Implementar fluxo completo de confirmação de presença
+2. Finalizar integração com calendários
+3. Desenvolver sistema de lembretes automáticos
+4. Aprimorar estatísticas e métricas para organizadores
+5. Implementar função de envio de mensagens em massa

@@ -4,12 +4,10 @@ import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import EventTypeSelector from "./EventTypeSelector";
-import BasicDetailsForm from "./BasicDetailsForm";
-import CustomizationPanel from "./CustomizationPanel";
+import { BasicDetailsForm } from "./BasicDetailsForm";
 import GuestManagement from "./GuestManagement";
 import ShareInvites from "./ShareInvites";
 import EventPage from "./EventPage";
-import SaveTheDateSection from "./SaveTheDateSection";
 import AuthDialog from "../auth/AuthDialog";
 import { useI18n } from "@/lib/i18n";
 import { setPageTitle } from "@/lib/utils/page-title";
@@ -34,13 +32,19 @@ const EventCreationWizard = ({
     basicDetails: {
       title: "",
       description: "",
-      isPrivate: false,
+      date: new Date(),
+      startTime: "",
+      endTime: "",
+      location: "",
+      maxCapacity: 100,
+      bannerImage: "",
     },
     customization: {
       date: new Date(),
-      startTime: "19:00",
+      startTime: "",
+      endTime: "",
       location: "",
-      bannerImage: "",
+      maxCapacity: 100,
     },
     guests: [],
     saveTheDate: {
@@ -117,10 +121,7 @@ const EventCreationWizard = ({
       const userId = session?.user?.id || "temp-user-id";
 
       // Create a temporary event
-      const { t } = useI18n();
-      const tempTitle = t
-        ? t("event.temporaryEvent") || "Temporary event"
-        : "Temporary event";
+      const tempTitle = "Temporary event";
       const { data: event, error } = await supabase
         .from("events")
         .insert([
@@ -318,6 +319,39 @@ const EventCreationWizard = ({
     }
   };
 
+  const handleBasicDetailsSubmit = (values: any) => {
+    console.log("Basic details values:", values);
+    
+    setEventData((prev) => ({
+      ...prev,
+      basicDetails: {
+        title: values.title,
+        description: values.description,
+        date: values.date,
+        startTime: values.startTime,
+        endTime: values.endTime,
+        location: values.location,
+        maxCapacity: values.maxCapacity,
+        bannerImage: values.bannerImage,
+      },
+      customization: {
+        ...prev.customization,
+        date: values.date,
+        startTime: values.startTime,
+        endTime: values.endTime,
+        location: values.location,
+        maxCapacity: values.maxCapacity,
+      },
+      saveTheDate: values.saveTheDate || {
+        deadline: "",
+        message: "",
+      },
+    }));
+
+    console.log("Moving to next step");
+    setStep(3);
+  };
+
   if (showEventPage) {
     return (
       <EventPage
@@ -399,47 +433,18 @@ const EventCreationWizard = ({
           {step === 2 && (
             <div className="space-y-8">
               <BasicDetailsForm
-                onSubmit={(values) => {
-                  const updatedEventData = {
-                    ...eventData,
-                    basicDetails: {
-                      ...eventData.basicDetails,
-                      ...values,
-                    },
-                  };
-                  setEventData(updatedEventData);
-                  console.log("Updated event data:", updatedEventData);
+                onSubmit={handleBasicDetailsSubmit}
+                defaultValues={{
+                  title: eventData.basicDetails?.title,
+                  description: eventData.basicDetails?.description,
+                  date: eventData.basicDetails?.date,
+                  startTime: eventData.basicDetails?.startTime,
+                  endTime: eventData.basicDetails?.endTime,
+                  location: eventData.basicDetails?.location,
+                  maxCapacity: eventData.basicDetails?.maxCapacity,
+                  bannerImage: eventData.basicDetails?.bannerImage,
+                  saveTheDate: eventData.saveTheDate,
                 }}
-                defaultValues={eventData.basicDetails}
-              />
-              <CustomizationPanel
-                selectedDate={eventData.customization?.date || new Date()}
-                startTime={format(
-                  eventData.customization?.date || new Date(),
-                  "HH:mm",
-                )}
-                onDateChange={(date) =>
-                  setEventData({
-                    ...eventData,
-                    customization: { ...eventData.customization, date },
-                  })
-                }
-                location={eventData.customization?.location || ""}
-                onLocationChange={(location) =>
-                  setEventData({
-                    ...eventData,
-                    customization: { ...eventData.customization, location },
-                  })
-                }
-              />
-              <SaveTheDateSection
-                onSave={(saveTheDate) =>
-                  setEventData({
-                    ...eventData,
-                    saveTheDate,
-                  })
-                }
-                defaultValues={eventData.saveTheDate}
               />
             </div>
           )}

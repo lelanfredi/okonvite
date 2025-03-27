@@ -9,6 +9,10 @@ import SendMessageDialog from "./SendMessageDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import Header from "@/components/layout/Header";
 import LoadingPage from "@/components/loading/LoadingPage";
+import EventDashboard from "./EventDashboard";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { EventManagementButtons } from "./EventManagementButtons";
 
 interface EventPageProps {
   event: {
@@ -103,10 +107,40 @@ export default function EventPage() {
     );
   }
 
+  const handleInviteGuests = () => {
+    // Implementar lógica para convidar convidados
+    console.log("Convidar convidados");
+  };
+
+  const handleSendMessage = () => {
+    // Implementar lógica para enviar comunicado
+    console.log("Enviar comunicado");
+  };
+
+  const handleShare = () => {
+    // Implementar lógica para compartilhar evento
+    console.log("Compartilhar evento");
+  };
+
+  const handleManage = () => {
+    // Implementar lógica para gerenciar evento
+    console.log("Gerenciar evento");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Global Header */}
-      <Header />
+      <Header>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`/evento/${id}`, "_blank")}
+          >
+            Página do Evento ↗
+          </Button>
+        </div>
+      </Header>
 
       {/* Banner Image */}
       <div className="w-full h-[300px] bg-muted relative mt-16">
@@ -126,56 +160,22 @@ export default function EventPage() {
           <div className="flex items-center gap-x-4">
             <h1 className="text-xl font-semibold">{event.title}</h1>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open(`/evento/${id}`, "_blank")}
-          >
-            Página do Evento ↗
-          </Button>
         </div>
       </header>
 
+      {/* Management Buttons */}
+      <div className="container mx-auto px-4 py-6 border-b">
+        <EventManagementButtons
+          onInviteGuests={() => setShowGuestManagement(true)}
+          onSendMessage={() => setShowSendMessage(true)}
+          onShare={() => setShowShareInvites(true)}
+          onManage={() => setShowManagement(true)}
+        />
+      </div>
+
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="flex gap-8">
-          {/* Action Buttons */}
-          <div className="flex gap-4">
-            <Button
-              className="flex items-center gap-2"
-              onClick={() => setShowGuestManagement(true)}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Convidar Convidados
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => setShowSendMessage(true)}
-            >
-              <Send className="w-4 h-4" />
-              Enviar Comunicado
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => setShowShareInvites(true)}
-            >
-              <Share2 className="w-4 h-4" />
-              Compartilhar Evento
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center gap-2"
-              onClick={() => setShowManagement(true)}
-            >
-              <Settings className="w-4 h-4" />
-              Gerenciar evento
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-8 grid grid-cols-3 gap-8">
+        <div className="grid grid-cols-3 gap-8">
           {/* Event Details Card */}
           <Card className="col-span-2 p-6 space-y-6">
             <div className="space-y-4">
@@ -183,7 +183,7 @@ export default function EventPage() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="w-4 h-4" />
-                  {event.date.toLocaleDateString("pt-BR")} • {event.time}
+                  {format(event.date, "dd/MM/yyyy", { locale: ptBR })} • {event.time}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {event.location}
@@ -197,50 +197,17 @@ export default function EventPage() {
             </div>
           </Card>
 
-          {/* Event Summary Dashboard */}
-          <div className="space-y-8">
-            <Card className="p-6 space-y-4 h-fit">
-              <h3 className="font-semibold">Resumo do Evento</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-primary/10 rounded-lg p-4 text-center">
-                  <p className="text-3xl font-bold text-primary">
-                    {Math.max(
-                      0,
-                      Math.ceil(
-                        (new Date(event.date).getTime() -
-                          new Date().getTime()) /
-                          (1000 * 60 * 60 * 24),
-                      ),
-                    )}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Dias restantes
-                  </p>
-                </div>
-                <div className="bg-primary/10 rounded-lg p-4 text-center">
-                  <p className="text-3xl font-bold text-primary">
-                    {event.confirmedGuests || 0}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Confirmados</p>
-                </div>
-              </div>
-              <div className="pt-2">
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => setShowGuestManagement(true)}
-                >
-                  Gerenciar convidados
-                </Button>
-              </div>
-            </Card>
-
-            {/* Event Statistics */}
-            <EventStatistics eventId={id} />
-          </div>
+          {/* Event Dashboard */}
+          <EventDashboard
+            eventId={id}
+            eventTitle={event.title}
+            eventDate={event.date}
+            onManageGuests={() => setShowGuestManagement(true)}
+          />
         </div>
       </main>
 
+      {/* Dialogs */}
       <Dialog open={showGuestManagement} onOpenChange={setShowGuestManagement}>
         <DialogContent className="max-w-4xl">
           <GuestManagement eventId={id} />

@@ -26,18 +26,36 @@ const FormFieldContext = React.createContext<FormFieldContextValue>(
   {} as FormFieldContextValue
 )
 
-const FormField = <
-  TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
->({
-  ...props
-}: ControllerProps<TFieldValues, TName>) => {
-  return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
-      <Controller {...props} />
-    </FormFieldContext.Provider>
-  )
+interface FormFieldProps extends React.HTMLAttributes<HTMLDivElement> {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
 }
+
+const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
+  ({ className, label, required, error, children, ...props }, ref) => {
+    return (
+      <div ref={ref} className={cn("space-y-2", className)} {...props}>
+        <Label className="flex items-center gap-1">
+          {label}
+          {required && (
+            <span className="text-red-500" title="Campo obrigatório">
+              *
+            </span>
+          )}
+        </Label>
+        {children}
+        {error && (
+          <p className="text-sm text-red-500 animate-slideIn">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+FormField.displayName = "FormField"
 
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext)
@@ -164,6 +182,40 @@ const FormMessage = React.forwardRef<
 })
 FormMessage.displayName = "FormMessage"
 
+interface ValidatedFormProps extends React.FormHTMLAttributes<HTMLFormElement> {
+  onValidSubmit: () => void;
+  children: React.ReactNode;
+}
+
+const ValidatedForm = React.forwardRef<HTMLFormElement, ValidatedFormProps>(
+  ({ className, onValidSubmit, children, ...props }, ref) => {
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement;
+      
+      if (form.checkValidity()) {
+        onValidSubmit();
+      } else {
+        // Trigger browser's default validation UI
+        form.reportValidity();
+      }
+    };
+
+    return (
+      <form
+        ref={ref}
+        className={cn("space-y-6", className)}
+        onSubmit={handleSubmit}
+        noValidate
+        {...props}
+      >
+        {children}
+      </form>
+    );
+  }
+);
+ValidatedForm.displayName = "ValidatedForm"
+
 export {
   useFormField,
   Form,
@@ -173,4 +225,5 @@ export {
   FormDescription,
   FormMessage,
   FormField,
+  ValidatedForm,
 }

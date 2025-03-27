@@ -21,6 +21,8 @@ import { NotificationService } from "./NotificationService";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Event {
   id: string;
@@ -260,8 +262,7 @@ export default function PublicEventPage() {
                 <div className="flex items-center gap-2 text-lg mb-2">
                   <Calendar className="h-5 w-5 text-primary" />
                   <span className="font-medium">
-                    {new Date(event.date).toLocaleDateString("pt-BR")} •{" "}
-                    {event.time}
+                    {format(new Date(event.date), "dd/MM/yyyy", { locale: ptBR })} • {event.time}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-lg">
@@ -284,30 +285,14 @@ export default function PublicEventPage() {
       </main>
 
       <EventConfirmationDialog
-        open={showConfirmation}
-        onOpenChange={setShowConfirmation}
-        eventDetails={{
-          id: event.id,
-          title: event.title,
-          date: new Date(event.date),
-          time: event.time,
-          location: event.location,
-          settings: event.event_settings,
-        }}
-        onConfirm={(message) => {
-          setShowConfirmation(false);
-          setShowSuccessDialog(true);
-        }}
-        onMaybe={(message) => {
-          setShowConfirmation(false);
-          setResponseType("maybe");
-          setShowMaybeDeclineDialog(true);
-        }}
-        onDecline={(message) => {
-          setShowConfirmation(false);
-          setResponseType("declined");
-          setShowMaybeDeclineDialog(true);
-        }}
+        isOpen={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        eventId={event.id}
+        eventTitle={event.title}
+        eventDate={new Date(event.date)}
+        eventTime={event.time}
+        eventLocation={event.location}
+        onSuccess={() => setShowSuccessDialog(true)}
       />
 
       <ConfirmationSuccessDialog

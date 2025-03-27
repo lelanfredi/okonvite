@@ -1,8 +1,8 @@
 import React from "react";
 import { Card } from "../ui/card";
-import { Button } from "../ui/button";
 import { Cake, Building2, PartyPopper } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface EventType {
   id: string;
@@ -44,7 +44,7 @@ const EventTypeSelector = ({
 }: EventTypeSelectorProps) => {
   return (
     <div className="w-full bg-white p-6 rounded-lg">
-      <h2 className="text-2xl font-semibold mb-6">Escolha o tipo do evento</h2>
+      <h2 className="text-2xl font-semibold text-purple-700 mb-6">Escolha o tipo do evento</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {eventTypes.map((type) => (
           <motion.div
@@ -53,27 +53,41 @@ const EventTypeSelector = ({
             whileTap={{ scale: 0.98 }}
           >
             <Card
-              className={`cursor-pointer p-6 h-full ${selectedType === type.id ? "border-primary border-2" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onSelect(type.id);
-              }}
+              className={cn(
+                "cursor-pointer p-6 h-full transition-all duration-200 hover:shadow-md",
+                selectedType === type.id
+                  ? "bg-purple-50 border-purple-500 border-2 shadow-purple-100"
+                  : "hover:border-purple-200"
+              )}
+              onClick={() => onSelect(type.id)}
             >
               <div className="flex flex-col items-center text-center space-y-4">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  {type.icon}
+                <div className={cn(
+                  "p-3 rounded-full transition-colors duration-200",
+                  selectedType === type.id
+                    ? "bg-purple-100"
+                    : "bg-purple-50"
+                )}>
+                  <div className={cn(
+                    "transition-colors duration-200",
+                    selectedType === type.id
+                      ? "text-purple-600"
+                      : "text-purple-400"
+                  )}>
+                    {type.icon}
+                  </div>
                 </div>
-                <h3 className="text-xl font-medium">{type.title}</h3>
+                <h3 className={cn(
+                  "text-xl font-medium transition-colors duration-200",
+                  selectedType === type.id
+                    ? "text-purple-700"
+                    : "text-gray-700"
+                )}>
+                  {type.title}
+                </h3>
                 <p className="text-muted-foreground text-sm">
                   {type.description}
                 </p>
-                <Button
-                  variant={selectedType === type.id ? "default" : "outline"}
-                  className="mt-4"
-                >
-                  {selectedType === type.id ? "Selecionado" : "Selecionar"}
-                </Button>
               </div>
             </Card>
           </motion.div>

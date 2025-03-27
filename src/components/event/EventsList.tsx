@@ -5,6 +5,8 @@ import { Calendar, MapPin, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import LoadingPage from "@/components/loading/LoadingPage";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Event {
   id: string;
@@ -22,62 +24,61 @@ export default function EventsList() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          setLoading(false);
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from("events")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("date", { ascending: true });
-
-        if (error) throw error;
-        setEvents(data || []);
-      } catch (error) {
-        console.error("Error fetching events:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEvents();
   }, []);
 
+  const fetchEvents = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user?.id) {
+        console.error("No user session found");
+        return;
+      }
+
+      const { data: events, error } = await supabase
+        .from("events")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .order("date", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      setEvents(events || []);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
-    return <LoadingPage message="Carregando eventos" />;
+    return <LoadingPage />;
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Meus Eventos</h2>
-        <Button onClick={() => navigate("/new")}>
-          <Plus className="mr-2 h-4 w-4" /> Criar Evento
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Meus Eventos</h1>
+        <Button onClick={() => navigate("/new")} className="flex items-center gap-2">
+          <Plus className="h-5 w-5" />
+          Criar Evento
         </Button>
       </div>
 
       {events.length === 0 ? (
-        <div className="text-center py-12 bg-muted/20 rounded-lg">
-          <div className="text-center mb-6">
-            <span className="text-8xl">😢</span>
-          </div>
-          <h3 className="text-xl font-medium mb-2">Nenhum evento encontrado</h3>
-          <p className="text-muted-foreground mb-6">
-            Você ainda não criou nenhum evento. Comece criando seu primeiro
-            evento agora!
+        <Card className="p-8 text-center">
+          <h2 className="text-xl font-semibold mb-2">Nenhum evento criado</h2>
+          <p className="text-muted-foreground mb-4">
+            Comece criando seu primeiro evento!
           </p>
-          <Button onClick={() => navigate("/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Criar meu primeiro evento
+          <Button onClick={() => navigate("/new")} className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Criar Evento
           </Button>
-        </div>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {events.map((event) => (
@@ -101,7 +102,7 @@ export default function EventsList() {
                 <div className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2" />
-                    {new Date(event.date).toLocaleDateString()} • {event.time}
+                    {format(new Date(event.date), "dd/MM/yyyy", { locale: ptBR })} • {event.time}
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-4 w-4 mr-2" />

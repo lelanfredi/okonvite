@@ -118,26 +118,27 @@ const EventCreationWizard = ({
         data: { session },
       } = await supabase.auth.getSession();
 
-      // Create a temporary event even without a session
-      // We'll use a placeholder user ID if no session exists
       const userId = session?.user?.id || "temp-user-id";
+      const today = new Date();
+      const formattedDate = format(today, "yyyy-MM-dd");
 
-      // Create a temporary event
-      const tempTitle = "Temporary event";
       const { data: event, error } = await supabase
         .from("events")
         .insert([
           {
-            title: tempTitle,
+            title: "Temporary event",
             description: "",
             event_type: "temp",
-            date: new Date().toISOString(),
+            date: formattedDate,
+            start_date: formattedDate,
             time: "19:00",
             location: "",
             is_private: false,
             user_id: userId,
             created_by: userId,
             is_temporary: true,
+            short_id: generateShortId(),
+            status: "active",
           },
         ])
         .select()
@@ -148,7 +149,6 @@ const EventCreationWizard = ({
         return;
       }
 
-      console.log("Created temporary event:", event);
       localStorage.setItem("temporaryEventId", event.id);
       setEventData((prev) => ({ ...prev, temporaryEventId: event.id }));
     } catch (error) {
@@ -212,7 +212,6 @@ const EventCreationWizard = ({
         return;
       }
 
-      // Validar dados obrigatórios
       if (!eventData.basicDetails.title || !eventData.basicDetails.startTime || !eventData.basicDetails.date) {
         console.error("Missing required fields");
         return;
@@ -223,39 +222,35 @@ const EventCreationWizard = ({
         ? eventData.basicDetails.date 
         : new Date(eventData.basicDetails.date);
 
-      // Formatar a data para o formato esperado pelo banco
+      // Formatar as datas para o formato esperado pelo banco
       const formattedDate = format(eventDate, "yyyy-MM-dd");
+      const formattedStartTime = eventData.basicDetails.startTime;
+      const formattedEndTime = eventData.basicDetails.endTime || null;
 
       const eventToCreate = {
-        // Campos obrigatórios
         user_id: user.id,
         title: eventData.basicDetails.title,
         description: eventData.basicDetails.description || "",
         date: formattedDate,
         start_date: formattedDate,
-        time: eventData.basicDetails.startTime,
+        time: formattedStartTime,
         event_type: eventData.type,
         is_private: false,
         created_by: user.id,
         is_temporary: false,
-        short_id: generateShortId(), // Função que precisamos criar
-
-        // Campos opcionais
-        end_date: eventData.basicDetails.endTime ? format(new Date(eventData.basicDetails.endTime), "yyyy-MM-dd") : null,
+        short_id: generateShortId(),
+        status: "active",
         location: eventData.basicDetails.location || "",
         max_capacity: eventData.basicDetails.maxCapacity || null,
         image_url: eventData.basicDetails.bannerImage || null,
-        end_time: eventData.basicDetails.endTime || null,
-        start_time: eventData.basicDetails.startTime,
+        // Campos de data e hora
+        start_time: formattedStartTime,
+        end_time: formattedEndTime,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        status: "active",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       console.log("Trying to create event with data:", eventToCreate);
 
-      // Criar o evento
       const { data: event, error: eventError } = await supabase
         .from("events")
         .insert([eventToCreate])
@@ -264,12 +259,6 @@ const EventCreationWizard = ({
 
       if (eventError) {
         console.error("Error creating event:", eventError);
-        console.error("Error details:", {
-          code: eventError.code,
-          message: eventError.message,
-          details: eventError.details,
-          hint: eventError.hint
-        });
         return;
       }
 
@@ -284,33 +273,17 @@ const EventCreationWizard = ({
             allow_plus_ones: true,
             rsvp_deadline: eventData.saveTheDate.deadline ? format(new Date(eventData.saveTheDate.deadline), "yyyy-MM-dd") : null,
             save_the_date_message: eventData.saveTheDate.message || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           },
         ]);
 
       if (settingsError) {
         console.error("Error creating event settings:", settingsError);
-        console.error("Settings error details:", {
-          code: settingsError.code,
-          message: settingsError.message,
-          details: settingsError.details,
-          hint: settingsError.hint
-        });
         return;
       }
 
-      // Redirecionar para a página do evento
       navigate(`/events/${event.short_id}`);
     } catch (error) {
       console.error("Error in createEvent:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        });
-      }
     }
   };
 

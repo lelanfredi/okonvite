@@ -222,7 +222,7 @@ const EventCreationWizard = ({
             description: eventData.basicDetails.description,
             date: eventData.basicDetails.date,
             time: eventData.basicDetails.startTime,
-            end_time: eventData.basicDetails.endTime,
+            end_date: eventData.basicDetails.endTime,
             location: eventData.basicDetails.location,
             max_capacity: eventData.basicDetails.maxCapacity,
             image_url: eventData.basicDetails.bannerImage,

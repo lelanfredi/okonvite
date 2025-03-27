@@ -21,7 +21,7 @@ function App() {
           {/* Public routes first */}
           <Route path="/" element={<Home />} />
           <Route path="/recursos" element={<Resources />} />
-          <Route path="/evento/:id" element={<PublicEventPage />} />
+          <Route path="/e/:shortId" element={<PublicEventPage />} />
 
           {/* Protected routes */}
           <Route

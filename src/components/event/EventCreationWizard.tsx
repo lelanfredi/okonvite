@@ -11,6 +11,7 @@ import EventPage from "./EventPage";
 import AuthDialog from "../auth/AuthDialog";
 import { useI18n } from "@/lib/i18n";
 import { setPageTitle } from "@/lib/utils/page-title";
+import { useNavigate } from "react-router-dom";
 
 interface EventCreationWizardProps {
   onComplete?: (eventData: any) => void;
@@ -53,6 +54,7 @@ const EventCreationWizard = ({
     },
     temporaryEventId: "",
   });
+  const navigate = useNavigate();
 
   const steps = [
     { id: 1, title: t("wizard.step1") },
@@ -220,83 +222,62 @@ const EventCreationWizard = ({
   const createEvent = async () => {
     try {
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (!session?.user?.id) {
-        console.error("No user session found");
+      if (!user) {
+        console.error("No user found");
         return;
       }
 
-      // Validate required fields
-      if (!eventData.type || !eventData.basicDetails?.title) {
-        console.error("Missing required fields");
+      // Criar o evento
+      const { data: event, error: eventError } = await supabase
+        .from("events")
+        .insert([
+          {
+            user_id: user.id,
+            title: eventData.basicDetails.title,
+            description: eventData.basicDetails.description,
+            date: eventData.basicDetails.date,
+            time: eventData.basicDetails.startTime,
+            end_time: eventData.basicDetails.endTime,
+            location: eventData.basicDetails.location,
+            max_capacity: eventData.basicDetails.maxCapacity,
+            image_url: eventData.basicDetails.bannerImage,
+            type: eventData.type,
+          },
+        ])
+        .select()
+        .single();
+
+      if (eventError) {
+        console.error("Error creating event:", eventError);
         return;
       }
 
-      // Prepare event date
-      const eventDate = eventData.customization?.date || new Date();
-      const [hours, minutes] = (
-        eventData.customization?.startTime || "19:00"
-      ).split(":");
-      const formattedDate = new Date(eventDate);
-      formattedDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      // Criar configurações do evento
+      const { error: settingsError } = await supabase
+        .from("event_settings")
+        .insert([
+          {
+            event_id: event.id,
+            is_private: false,
+            show_guest_list: true,
+            allow_plus_ones: true,
+            rsvp_deadline: eventData.saveTheDate.deadline || null,
+            save_the_date_message: eventData.saveTheDate.message || null,
+          },
+        ]);
 
-      const eventToCreate = {
-        title: eventData.basicDetails.title,
-        description: eventData.basicDetails.description || "",
-        event_type: eventData.type,
-        date: formattedDate.toISOString(),
-        start_date: formattedDate.toISOString(),
-        time: eventData.customization?.startTime || "19:00",
-        location: eventData.customization?.location || "",
-        is_private: eventData.basicDetails.isPrivate || false,
-        user_id: session.user.id,
-        created_by: session.user.id,
-        image_url: eventData.customization?.bannerImage || null,
-        save_the_date_deadline: eventData.saveTheDate?.deadline
-          ? new Date(eventData.saveTheDate.deadline).toISOString()
-          : null,
-        save_the_date_message: eventData.saveTheDate?.message || null,
-        is_temporary: false,
-      };
-
-      console.log("Creating/updating event with data:", eventToCreate);
-
-      let eventId;
-
-      if (eventData.temporaryEventId) {
-        // Update the temporary event instead of creating a new one
-        const { data: updatedEvent, error } = await supabase
-          .from("events")
-          .update(eventToCreate)
-          .eq("id", eventData.temporaryEventId)
-          .select()
-          .single();
-
-        if (error) throw error;
-        eventId = updatedEvent.id;
-        console.log("Temporary event updated successfully:", updatedEvent);
-      } else {
-        // Create a new event if no temporary event exists
-        const { data: newEvent, error } = await supabase
-          .from("events")
-          .insert([eventToCreate])
-          .select()
-          .single();
-
-        if (error) throw error;
-        eventId = newEvent.id;
-        console.log("Event created successfully:", newEvent);
+      if (settingsError) {
+        console.error("Error creating event settings:", settingsError);
+        return;
       }
 
-      // Clear the temporary event ID from localStorage
-      localStorage.removeItem("temporaryEventId");
-
-      onComplete(eventData);
-      window.location.href = `/events/${eventId}`;
+      // Redirecionar para a página do evento
+      navigate(`/events/${event.id}`);
     } catch (error) {
-      console.error("Error creating event:", error);
+      console.error("Error in createEvent:", error);
     }
   };
 

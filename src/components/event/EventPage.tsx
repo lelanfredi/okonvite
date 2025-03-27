@@ -40,7 +40,10 @@ export default function EventPage() {
   }, []);
   const { id } = useParams();
   const [event, setEvent] = useState<
-    EventPageProps["event"] & { confirmedGuests?: number }
+    EventPageProps["event"] & { 
+      confirmedGuests?: number;
+      short_id?: string;
+    }
   >();
   const [loading, setLoading] = useState(true);
   const [showGuestManagement, setShowGuestManagement] = useState(false);
@@ -82,6 +85,7 @@ export default function EventPage() {
         settings: event.event_settings,
         co_organizers: event.event_co_organizers,
         confirmedGuests: confirmedGuests || 0,
+        short_id: event.short_id,
         organizer: {
           name: "Você",
           email: "seu@email.com",
@@ -135,7 +139,7 @@ export default function EventPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open(`/evento/${id}`, "_blank")}
+            onClick={() => window.open(`/e/${event.short_id}`, "_blank")}
           >
             Página do Evento ↗
           </Button>
@@ -182,7 +186,7 @@ export default function EventPage() {
               <h2 className="text-2xl font-semibold">{event.title}</h2>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="h-4 w-4" />
                   {format(event.date, "dd/MM/yyyy", { locale: ptBR })} • {event.time}
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -241,7 +245,7 @@ export default function EventPage() {
           id: id,
           title: event.title,
           description: event.description,
-          date: new Date(event.date),
+          date: event.date,
           time: event.time,
           location: event.location,
           is_private: event.is_private,

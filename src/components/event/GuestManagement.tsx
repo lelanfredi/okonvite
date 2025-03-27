@@ -47,8 +47,9 @@ const GuestManagement = ({
   const { t, language } = useI18n();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("add");
+  const [shortId, setShortId] = useState<string>("");
   const [inviteLink, setInviteLink] = React.useState(
-    `${window.location.origin}/evento/${eventId}`,
+    `${window.location.origin}/e/${eventId}`,
   );
   const [copied, setCopied] = React.useState(false);
   const [showAddGuest, setShowAddGuest] = React.useState(false);
@@ -62,8 +63,26 @@ const GuestManagement = ({
   useEffect(() => {
     if (!eventId) return;
 
-    // Set the invite link
-    setInviteLink(`${window.location.origin}/evento/${eventId}`);
+    // Buscar o short_id do evento
+    const fetchShortId = async () => {
+      const { data: event, error } = await supabase
+        .from("events")
+        .select("short_id")
+        .eq("id", eventId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching short_id:", error);
+        return;
+      }
+
+      if (event?.short_id) {
+        setShortId(event.short_id);
+        setInviteLink(`${window.location.origin}/e/${event.short_id}`);
+      }
+    };
+
+    fetchShortId();
   }, [eventId]);
 
   const copyToClipboard = () => {
@@ -113,7 +132,12 @@ const GuestManagement = ({
                     }
 
                     try {
-                      // Insert all imported guests into the database
+                      // Obter o ID do usuário atual (organizador)
+                      const { data: { user }, error: authError } = await supabase.auth.getUser();
+                      
+                      if (authError) throw authError;
+                      if (!user) throw new Error("Usuário não autenticado");
+
                       const { error } = await supabase
                         .from("event_rsvps")
                         .insert(
@@ -125,12 +149,14 @@ const GuestManagement = ({
                             status: "pending",
                             guests_count: 0,
                             dietary_restrictions: "",
+                            user_id: user.id, // Adiciona o ID do organizador
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
                           })),
                         );
 
                       if (error) throw error;
 
-                      // Switch to the manage tab after adding guests
                       setActiveTab("manage");
 
                       toast({
@@ -141,13 +167,13 @@ const GuestManagement = ({
                             : `${importedGuests.length} guests added successfully`,
                       });
                     } catch (error) {
-                      console.error("Error adding guests:", error);
+                      console.error("Error importing guests:", error);
                       toast({
                         title: language === "pt" ? "Erro" : "Error",
                         description:
                           language === "pt"
-                            ? "Erro ao adicionar convidados"
-                            : "Error adding guests",
+                            ? "Erro ao importar convidados"
+                            : "Error importing guests",
                         variant: "destructive",
                       });
                     }
@@ -354,7 +380,6 @@ const GuestManagement = ({
         onOpenChange={setShowAddGuest}
         onAdd={async (guest) => {
           if (!eventId) {
-            // If no eventId is provided, we'll show a toast but still allow the operation
             toast({
               title: language === "pt" ? "Informação" : "Information",
               description:
@@ -362,11 +387,16 @@ const GuestManagement = ({
                   ? "Os convidados serão vinculados ao evento quando ele for salvo"
                   : "Guests will be linked to the event when it is saved",
             });
-            // Return early but don't block the operation
             return;
           }
 
           try {
+            // Obter o ID do usuário atual (organizador)
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            
+            if (authError) throw authError;
+            if (!user) throw new Error("Usuário não autenticado");
+
             const { error } = await supabase.from("event_rsvps").insert([
               {
                 event_id: eventId,
@@ -376,12 +406,14 @@ const GuestManagement = ({
                 status: "pending",
                 guests_count: 0,
                 dietary_restrictions: "",
+                user_id: user.id, // Adiciona o ID do organizador
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
               },
             ]);
 
             if (error) throw error;
 
-            // Switch to the manage tab after adding a guest
             setActiveTab("manage");
 
             toast({

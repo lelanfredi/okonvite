@@ -408,10 +408,6 @@ export function BasicDetailsForm({ onSubmit, defaultValues = {} }: BasicDetailsF
           </FormField>
         </div>
       </div>
-
-      <Button type="submit" className="w-full">
-        Próximo
-      </Button>
     </ValidatedForm>
   );
 }

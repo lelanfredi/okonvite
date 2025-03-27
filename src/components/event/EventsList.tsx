@@ -10,6 +10,7 @@ import { ptBR } from "date-fns/locale";
 
 interface Event {
   id: string;
+  short_id: string;
   title: string;
   description?: string;
   date: string;
@@ -29,24 +30,18 @@ export default function EventsList() {
 
   const fetchEvents = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      if (!session?.user?.id) {
-        console.error("No user session found");
-        return;
-      }
-
-      const { data: events, error } = await supabase
+      const { data: events } = await supabase
         .from("events")
         .select("*")
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .order("date", { ascending: true });
 
-      if (error) {
-        throw error;
+      if (events) {
+        setEvents(events);
       }
-
-      setEvents(events || []);
     } catch (error) {
       console.error("Error fetching events:", error);
     } finally {
@@ -108,6 +103,18 @@ export default function EventsList() {
                     <MapPin className="h-4 w-4 mr-2" />
                     {event.location}
                   </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(`/e/${event.short_id}`, "_blank");
+                    }}
+                  >
+                    Ver Página do Evento ↗
+                  </Button>
                 </div>
               </div>
             </Card>

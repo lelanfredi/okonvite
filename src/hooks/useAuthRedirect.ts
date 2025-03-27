@@ -49,7 +49,7 @@ export function useAuthRedirect() {
       // Verifica se é uma rota pública, incluindo rotas de evento público
       const isPublicRoute =
         authConfig.publicRoutes?.some((route) => pathname.startsWith(route)) ||
-        pathname.match(/^\/evento\/[a-zA-Z0-9-]+$/) ||
+        pathname.match(/^\/e\/[a-zA-Z0-9-]+$/) ||
         false;
 
       if (session && isPublicOnlyRoute) {

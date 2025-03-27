@@ -171,31 +171,13 @@ const EventCreationWizard = ({
     );
 
     // Validate current step
-    if (step === 1 && !eventData.type) {
-      console.error("Selecione um tipo de evento antes de continuar");
-      return;
-    }
-
-    // Validate step 2 (basic details)
-    if (step === 2) {
-      if (
-        !eventData.basicDetails.title ||
-        eventData.basicDetails.title.length < 2
-      ) {
-        console.error(
-          "O título do evento é obrigatório e deve ter pelo menos 2 caracteres",
-        );
-        return;
-      }
-
-      if (!eventData.basicDetails.description) {
-        console.error("A descrição do evento é obrigatória");
-        return;
-      }
-    }
-
-    // Check authentication for step 1 to 2 transition
     if (step === 1) {
+      if (!eventData.type) {
+        console.error("Selecione um tipo de evento antes de continuar");
+        return;
+      }
+
+      // Check authentication for step 1 to 2 transition
       const {
         data: { session },
       } = await supabase.auth.getSession();

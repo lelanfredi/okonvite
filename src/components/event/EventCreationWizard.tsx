@@ -213,25 +213,44 @@ const EventCreationWizard = ({
       }
 
       // Validar dados obrigatórios
-      if (!eventData.basicDetails.title || !eventData.basicDetails.startTime) {
+      if (!eventData.basicDetails.title || !eventData.basicDetails.startTime || !eventData.basicDetails.date) {
         console.error("Missing required fields");
         return;
       }
 
+      // Garantir que a data é um objeto Date
+      const eventDate = eventData.basicDetails.date instanceof Date 
+        ? eventData.basicDetails.date 
+        : new Date(eventData.basicDetails.date);
+
+      // Formatar a data para o formato esperado pelo banco
+      const formattedDate = format(eventDate, "yyyy-MM-dd");
+
       const eventToCreate = {
+        // Campos obrigatórios
         user_id: user.id,
         title: eventData.basicDetails.title,
-        description: eventData.basicDetails.description,
-        date: eventData.basicDetails.date.toISOString(),
+        description: eventData.basicDetails.description || "",
+        date: formattedDate,
+        start_date: formattedDate,
         time: eventData.basicDetails.startTime,
-        end_date: eventData.basicDetails.endTime || null,
-        location: eventData.basicDetails.location,
-        max_capacity: eventData.basicDetails.maxCapacity,
-        image_url: eventData.basicDetails.bannerImage || null,
         event_type: eventData.type,
         is_private: false,
         created_by: user.id,
         is_temporary: false,
+        short_id: generateShortId(), // Função que precisamos criar
+
+        // Campos opcionais
+        end_date: eventData.basicDetails.endTime ? format(new Date(eventData.basicDetails.endTime), "yyyy-MM-dd") : null,
+        location: eventData.basicDetails.location || "",
+        max_capacity: eventData.basicDetails.maxCapacity || null,
+        image_url: eventData.basicDetails.bannerImage || null,
+        end_time: eventData.basicDetails.endTime || null,
+        start_time: eventData.basicDetails.startTime,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       console.log("Trying to create event with data:", eventToCreate);
@@ -263,8 +282,10 @@ const EventCreationWizard = ({
             is_private: false,
             show_guest_list: true,
             allow_plus_ones: true,
-            rsvp_deadline: eventData.saveTheDate.deadline ? new Date(eventData.saveTheDate.deadline).toISOString() : null,
+            rsvp_deadline: eventData.saveTheDate.deadline ? format(new Date(eventData.saveTheDate.deadline), "yyyy-MM-dd") : null,
             save_the_date_message: eventData.saveTheDate.message || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ]);
 
@@ -280,7 +301,7 @@ const EventCreationWizard = ({
       }
 
       // Redirecionar para a página do evento
-      navigate(`/events/${event.id}`);
+      navigate(`/events/${event.short_id}`);
     } catch (error) {
       console.error("Error in createEvent:", error);
       if (error instanceof Error) {
@@ -291,6 +312,16 @@ const EventCreationWizard = ({
         });
       }
     }
+  };
+
+  // Função para gerar short_id único
+  const generateShortId = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
   };
 
   const handleBack = () => {

@@ -203,7 +203,11 @@ export function BasicDetailsForm({ onSubmit, defaultValues = {} }: BasicDetailsF
   };
 
   return (
-    <ValidatedForm onSubmit={handleSubmit} className="space-y-6">
+    <ValidatedForm 
+      id="basic-details-form"
+      onSubmit={handleSubmit} 
+      className="space-y-6"
+    >
       <FormField
         label="Título do Evento"
         error={touched.title && errors.title}
@@ -291,7 +295,7 @@ export function BasicDetailsForm({ onSubmit, defaultValues = {} }: BasicDetailsF
             error={touched.maxCapacity && errors.maxCapacity}
             required
           >
-            <Input
+                  <Input
               type="number"
               min={1}
               value={formData.maxCapacity}
@@ -369,7 +373,7 @@ export function BasicDetailsForm({ onSubmit, defaultValues = {} }: BasicDetailsF
 
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-purple-600">Save the Date</h3>
-          
+
           <FormField
             label="Data limite para confirmação"
             error={touched.saveTheDate?.deadline && errors.saveTheDate?.deadline}
@@ -377,13 +381,13 @@ export function BasicDetailsForm({ onSubmit, defaultValues = {} }: BasicDetailsF
             <Input
               type="date"
               value={formData.saveTheDate.deadline ? format(new Date(formData.saveTheDate.deadline), "yyyy-MM-dd") : ""}
-              onChange={(e) => {
+                    onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value) : null;
                 handleChange("saveTheDate", {
                   ...formData.saveTheDate,
                   deadline: date ? date.toISOString() : "",
-                });
-              }}
+                      });
+                    }}
               onBlur={() => handleBlur("saveTheDate.deadline")}
               placeholder="dd/mm/yyyy"
             />
@@ -407,7 +411,7 @@ export function BasicDetailsForm({ onSubmit, defaultValues = {} }: BasicDetailsF
             />
           </FormField>
         </div>
-      </div>
+                </div>
     </ValidatedForm>
   );
 }

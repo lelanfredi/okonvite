@@ -450,6 +450,18 @@ const EventCreationWizard = ({
                   saveTheDate: eventData.saveTheDate,
                 }}
               />
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={handleBack}>
+                  {t("wizard.back")}
+                </Button>
+                <Button
+                  type="submit"
+                  form="basic-details-form"
+                  className="bg-primary hover:bg-primary/90 text-white"
+                >
+                  {t("wizard.next")}
+                </Button>
+              </div>
             </div>
           )}
           {step === 3 && (
@@ -480,17 +492,19 @@ const EventCreationWizard = ({
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between">
-          <Button variant="outline" onClick={handleBack} disabled={step === 1}>
-            {t("wizard.back")}
-          </Button>
-          <Button
-            onClick={handleNext}
-            className="bg-primary hover:bg-primary/90 text-white"
-          >
-            {step === steps.length ? t("wizard.finish") : t("wizard.next")}
-          </Button>
-        </div>
+        {step !== 2 && (
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={handleBack} disabled={step === 1}>
+              {t("wizard.back")}
+            </Button>
+            <Button
+              onClick={handleNext}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              {step === steps.length ? t("wizard.finish") : t("wizard.next")}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Auth Dialog */}

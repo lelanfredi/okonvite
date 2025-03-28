@@ -40,8 +40,10 @@ export function useAuthRedirect() {
         return;
       }
 
-      // Verifica se é uma rota de evento público usando short_id
-      const isPublicEventRoute = pathname.match(/^\/e\/[a-zA-Z0-9-]+$/);
+      // Verifica se é uma rota de evento público usando short_id ou UUID
+      const isPublicEventRoute = 
+        pathname.match(/^\/e\/[a-zA-Z0-9-]+$/) || 
+        pathname.match(/^\/evento\/[a-zA-Z0-9-]+$/);
       
       // Se for uma rota de evento público, permite acesso sem autenticação
       if (isPublicEventRoute) {

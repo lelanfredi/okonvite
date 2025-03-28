@@ -55,7 +55,8 @@ export default function PublicEventPage() {
       }
 
       try {
-        const { data: event, error: supabaseError } = await supabase
+        // Primeiro tenta buscar por short_id
+        let { data: event, error: shortIdError } = await supabase
           .from("events")
           .select(`
             *,
@@ -64,8 +65,20 @@ export default function PublicEventPage() {
           .eq("short_id", shortId)
           .single();
 
-        if (supabaseError) {
-          throw supabaseError;
+        // Se não encontrar por short_id, tenta por UUID
+        if (!event && shortId.includes("-")) {
+          const { data: uuidEvent, error: uuidError } = await supabase
+            .from("events")
+            .select(`
+              *,
+              event_settings (*)
+            `)
+            .eq("id", shortId)
+            .single();
+
+          if (uuidEvent) {
+            event = uuidEvent;
+          }
         }
 
         if (!event) {

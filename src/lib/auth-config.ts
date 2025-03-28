@@ -13,7 +13,7 @@ export const authConfig = {
   publicOnlyRoutes: ["/login", "/signup"],
 
   // Routes that are always public
-  publicRoutes: ["/e", "/e/"], // Public event routes
+  publicRoutes: ["/e", "/e/", "/evento", "/evento/"], // Public event routes
 
   // Default redirect after login if no returnTo is specified
   defaultProtectedRoute: "/dashboard",

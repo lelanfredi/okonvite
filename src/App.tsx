@@ -22,6 +22,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/recursos" element={<Resources />} />
           <Route path="/e/:shortId" element={<PublicEventPage />} />
+          <Route path="/evento/:shortId" element={<PublicEventPage />} />
 
           {/* Protected routes */}
           <Route

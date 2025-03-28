@@ -281,7 +281,7 @@ const EventCreationWizard = ({
         return;
       }
 
-      navigate(`/events/${event.short_id}`);
+      navigate(`/events/${event.id}`);
     } catch (error) {
       console.error("Error in createEvent:", error);
     }

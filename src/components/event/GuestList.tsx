@@ -3,8 +3,9 @@ import { supabase } from "@/lib/supabase";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Mail, MessageSquare } from "lucide-react";
+import { Check, X, Mail, MessageSquare, HelpCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useEventStats } from "@/hooks/useEventStats";
 
 interface Guest {
   id: string;
@@ -19,61 +20,17 @@ interface Guest {
 }
 
 interface GuestListProps {
-  eventId: string;
+  eventId?: string;
+  guests: Guest[];
+  onGuestsChange?: (guests: Guest[]) => void;
   onSendMessage?: (guests: Guest[]) => void;
 }
 
-const GuestList = ({ eventId, onSendMessage }: GuestListProps) => {
+const GuestList = ({ eventId, guests, onGuestsChange, onSendMessage }: GuestListProps) => {
   const { language } = useI18n();
-  const [guests, setGuests] = useState<Guest[]>([]);
   const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchGuests = async () => {
-    if (!eventId) return;
-
-    setIsLoading(true);
-    const { data, error } = await supabase
-      .from("event_rsvps")
-      .select("*")
-      .eq("event_id", eventId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching guests:", error);
-    } else {
-      setGuests(data || []);
-    }
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchGuests();
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel(`event_rsvps_changes_${eventId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "event_rsvps",
-          filter: `event_id=eq.${eventId}`,
-        },
-        (payload) => {
-          console.log("Realtime update received:", payload);
-          fetchGuests();
-        },
-      )
-      .subscribe();
-
-    console.log(`Subscribed to realtime updates for event ${eventId}`);
-
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [eventId]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { stats } = useEventStats(eventId);
 
   const toggleGuestSelection = (guestId: string) => {
     setSelectedGuests((prev) => {
@@ -85,23 +42,22 @@ const GuestList = ({ eventId, onSendMessage }: GuestListProps) => {
     });
   };
 
-  const handleSendMessage = () => {
-    const guestsToMessage = guests.filter((guest) =>
-      selectedGuests.includes(guest.id),
-    );
-    if (onSendMessage) {
-      onSendMessage(guestsToMessage);
-    }
-  };
-
   const updateGuestStatus = async (guestId: string, status: string) => {
     try {
       const { error } = await supabase
         .from("event_rsvps")
-        .update({ status })
+        .update({ status, updated_at: new Date().toISOString() })
         .eq("id", guestId);
 
       if (error) throw error;
+
+      // Atualizar a lista local
+      if (onGuestsChange) {
+        const updatedGuests = guests.map(guest => 
+          guest.id === guestId ? { ...guest, status } : guest
+        );
+        onGuestsChange(updatedGuests);
+      }
     } catch (error) {
       console.error("Error updating guest status:", error);
     }
@@ -119,32 +75,57 @@ const GuestList = ({ eventId, onSendMessage }: GuestListProps) => {
     <div className="w-full bg-white rounded-lg">
       {guests.length > 0 ? (
         <>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <span className="font-medium">{guests.length}</span>{" "}
-              {language === "pt" ? "convidados" : "guests"}
-            </div>
-            {selectedGuests.length > 0 && (
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSendMessage}
-                  className="flex items-center gap-1"
-                >
-                  <Mail className="w-4 h-4" />
-                  {language === "pt" ? "Enviar mensagem" : "Send message"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-1"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  {language === "pt" ? "WhatsApp" : "WhatsApp"}
-                </Button>
+          <div className="flex flex-col gap-4 mb-4">
+            <div className="flex justify-between items-center">
+              <div className="flex gap-4">
+                <div className="text-sm">
+                  <span className="font-medium">{stats?.totalGuests || guests.length}</span>{" "}
+                  {language === "pt" ? "convidados" : "guests"}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">{stats?.totalWithCompanions || guests.length}</span>{" "}
+                  {language === "pt" ? "pessoas no total" : "people in total"}
+                </div>
               </div>
-            )}
+              {selectedGuests.length > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSendMessage?.(guests.filter(g => selectedGuests.includes(g.id || '')))}
+                    className="flex items-center gap-1"
+                  >
+                    <Mail className="w-4 h-4" />
+                    {language === "pt" ? "Enviar mensagem" : "Send message"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex items-center gap-1"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    {language === "pt" ? "WhatsApp" : "WhatsApp"}
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-1 text-green-600">
+                <Check className="w-4 h-4" />
+                <span>{stats?.confirmed || guests.filter(g => g.status === 'confirmed').length}</span>{" "}
+                {language === "pt" ? "confirmados" : "confirmed"}
+              </div>
+              <div className="flex items-center gap-1 text-amber-600">
+                <HelpCircle className="w-4 h-4" />
+                <span>{stats?.maybe || guests.filter(g => g.status === 'maybe').length}</span>{" "}
+                {language === "pt" ? "talvez" : "maybe"}
+              </div>
+              <div className="flex items-center gap-1 text-red-600">
+                <X className="w-4 h-4" />
+                <span>{stats?.declined || guests.filter(g => g.status === 'declined').length}</span>{" "}
+                {language === "pt" ? "recusados" : "declined"}
+              </div>
+            </div>
           </div>
 
           <ScrollArea className="h-[300px] w-full pr-4">
@@ -152,8 +133,8 @@ const GuestList = ({ eventId, onSendMessage }: GuestListProps) => {
               {guests.map((guest) => (
                 <div
                   key={guest.id}
-                  className={`p-3 border rounded-lg flex items-center justify-between ${selectedGuests.includes(guest.id) ? "bg-primary/10 border-primary/30" : "bg-card"}`}
-                  onClick={() => toggleGuestSelection(guest.id)}
+                  className={`p-3 border rounded-lg flex items-center justify-between ${selectedGuests.includes(guest.id || '') ? "bg-primary/10 border-primary/30" : "bg-card"}`}
+                  onClick={() => guest.id && toggleGuestSelection(guest.id)}
                 >
                   <div className="flex-1">
                     <p className="font-semibold">{guest.name}</p>
@@ -188,10 +169,22 @@ const GuestList = ({ eventId, onSendMessage }: GuestListProps) => {
                       }
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateGuestStatus(guest.id, "confirmed");
+                        guest.id && updateGuestStatus(guest.id, "confirmed");
                       }}
                     >
                       <Check className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={
+                        guest.status === "maybe" ? "default" : "outline"
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        guest.id && updateGuestStatus(guest.id, "maybe");
+                      }}
+                    >
+                      <HelpCircle className="w-4 h-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -200,7 +193,7 @@ const GuestList = ({ eventId, onSendMessage }: GuestListProps) => {
                       }
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateGuestStatus(guest.id, "declined");
+                        guest.id && updateGuestStatus(guest.id, "declined");
                       }}
                     >
                       <X className="w-4 h-4" />

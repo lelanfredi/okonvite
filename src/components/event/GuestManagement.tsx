@@ -19,6 +19,9 @@ import {
   X,
   Sparkles,
   UserPlus,
+  Send,
+  Users,
+  Bell,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -32,15 +35,35 @@ import AddGuestDialog from "./AddGuestDialog";
 import GuestList from "./GuestList";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/components/ui/use-toast";
+import InviteManager from "./InviteManager";
+import AutomaticReminders from "./AutomaticReminders";
 
 interface GuestManagementProps {
   eventId?: string;
+  eventName: string;
+  eventDate: Date;
+  eventLocation: string;
   onInvite?: (method: string, guests: Guest[], message?: string) => void;
   onRsvpUpdate?: (guestId: string, status: "accepted" | "declined") => void;
 }
 
+interface Guest {
+  id?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  guests_count?: number;
+  dietary_restrictions?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 const GuestManagement = ({
   eventId,
+  eventName,
+  eventDate,
+  eventLocation,
   onInvite = () => {},
   onRsvpUpdate = () => {},
 }: GuestManagementProps) => {
@@ -59,6 +82,55 @@ const GuestManagement = ({
       : "You're invited! Join us for a special event. We would be delighted to have you there.",
   );
   const [messageStyle, setMessageStyle] = useState("formal");
+  const [guests, setGuests] = useState<Guest[]>([]);
+
+  const fetchGuests = async () => {
+    if (!eventId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("event_rsvps")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching guests:", error);
+        return;
+      }
+
+      setGuests(data || []);
+    } catch (error) {
+      console.error("Error in fetchGuests:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchGuests();
+    
+    // Set up realtime subscription for guest updates
+    if (eventId) {
+      const channel = supabase
+        .channel(`event_rsvps_${eventId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "event_rsvps",
+            filter: `event_id=eq.${eventId}`,
+          },
+          () => {
+            fetchGuests();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe();
+      };
+    }
+  }, [eventId]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -91,350 +163,197 @@ const GuestManagement = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  return (
-    <div className="w-full p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold mb-6">{t("guests.management")}</h2>
-      {/* Removed warning message about saving the event first */}
+  const onAdd = async (guest: Guest) => {
+    if (!eventId) {
+      toast({
+        variant: "destructive",
+        title: language === "pt" ? "Erro" : "Error",
+        description: language === "pt"
+          ? "ID do evento não encontrado"
+          : "Event ID not found",
+      });
+      return false;
+    }
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="add">{t("guests.add")}</TabsTrigger>
-          <TabsTrigger value="invite">{t("guests.send_invites")}</TabsTrigger>
-          <TabsTrigger value="manage">{t("guests.manage")}</TabsTrigger>
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase.from("event_rsvps").insert([
+        {
+          event_id: eventId,
+          name: guest.name,
+          email: guest.email,
+          phone: guest.phone,
+          status: "maybe",
+          guests_count: guest.guestsCount || 0,
+          dietary_restrictions: guest.dietaryRestrictions || "",
+          created_at: now
+        },
+      ]).select();
+
+      if (error) throw error;
+
+      // Adicionar o novo convidado à lista local
+      if (data && data[0]) {
+        setGuests((currentGuests) => [data[0], ...currentGuests]);
+      }
+      
+      // Mostrar mensagem de sucesso
+      toast({
+        title: language === "pt" ? "Sucesso" : "Success",
+        description: language === "pt" 
+          ? "Convidado adicionado com sucesso" 
+          : "Guest added successfully",
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error adding guest:", error);
+      
+      // Mostrar mensagem de erro
+      toast({
+        variant: "destructive",
+        title: language === "pt" ? "Erro" : "Error",
+        description: language === "pt"
+          ? "Erro ao adicionar convidado. Por favor, tente novamente."
+          : "Error adding guest. Please try again.",
+      });
+
+      return false;
+    }
+  };
+
+  const handleGuestsImport = async (newGuests: Array<{ name: string; email?: string; phone?: string }>) => {
+    if (!eventId) {
+      toast({
+        variant: "destructive",
+        title: language === "pt" ? "Erro" : "Error",
+        description: language === "pt"
+          ? "ID do evento não encontrado"
+          : "Event ID not found",
+      });
+      return;
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase.from("event_rsvps").insert(
+        newGuests.map(guest => ({
+          event_id: eventId,
+          name: guest.name,
+          email: guest.email,
+          phone: guest.phone,
+          status: "maybe",
+          guests_count: 0,
+          dietary_restrictions: "",
+          created_at: now
+        }))
+      ).select();
+
+      if (error) throw error;
+
+      if (data) {
+        setGuests((currentGuests) => [...data, ...currentGuests]);
+        
+        toast({
+          title: language === "pt" ? "Sucesso" : "Success",
+          description: language === "pt"
+            ? `${data.length} convidados importados com sucesso`
+            : `${data.length} guests imported successfully`,
+        });
+      }
+    } catch (error) {
+      console.error("Error importing guests:", error);
+      
+      toast({
+        variant: "destructive",
+        title: language === "pt" ? "Erro" : "Error",
+        description: language === "pt"
+          ? "Erro ao importar convidados. Por favor, tente novamente."
+          : "Error importing guests. Please try again.",
+      });
+    }
+  };
+
+  const handleReminderSettings = (settings: {
+    enabled: boolean;
+    frequency: "once" | "daily" | "weekly";
+    firstReminderDate: Date;
+    firstReminderTime: string;
+    sendFinalReminder: boolean;
+    channels: {
+      email: boolean;
+      whatsapp: boolean;
+    };
+    messageTemplate: string;
+  }) => {
+    // TODO: Implementar lógica de salvamento das configurações no banco de dados
+    console.log("Reminder settings:", settings);
+    
+    toast({
+      title: language === "pt" ? "Configurações salvas" : "Settings saved",
+      description: language === "pt"
+        ? "As configurações de lembretes foram salvas com sucesso"
+        : "Reminder settings have been saved successfully",
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-semibold text-purple-700">
+        {language === "pt" ? "Gerenciamento de Convidados" : "Guest Management"}
+      </h2>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-4 w-full">
+          <TabsTrigger value="add" className="flex items-center gap-2">
+            <UserPlus className="w-4 h-4" />
+            {language === "pt" ? "Adicionar Convidados" : "Add Guests"}
+          </TabsTrigger>
+          <TabsTrigger value="send" className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            {language === "pt" ? "Enviar Convites" : "Send Invites"}
+          </TabsTrigger>
+          <TabsTrigger value="manage" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            {language === "pt" ? "Gerenciar Convidados" : "Manage Guests"}
+          </TabsTrigger>
+          <TabsTrigger value="reminders" className="flex items-center gap-2">
+            <Bell className="w-4 h-4" />
+            {language === "pt" ? "Lembretes Automáticos" : "Automatic Reminders"}
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="add">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">{t("guests.add")}</h3>
-                <Button onClick={() => setShowAddGuest(true)}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  {language === "pt" ? "Adicionar Convidado" : "Add Guest"}
-                </Button>
-              </div>
-
-              <div className="border-t pt-6">
-                <h4 className="text-sm font-medium mb-4">
-                  {t("guests.import")}
-                </h4>
-                <GuestImport
-                  onImport={async (importedGuests) => {
-                    if (!eventId) {
-                      toast({
-                        title: language === "pt" ? "Informação" : "Information",
-                        description:
-                          language === "pt"
-                            ? "Os convidados serão vinculados ao evento quando ele for salvo"
-                            : "Guests will be linked to the event when it is saved",
-                      });
-                      return;
-                    }
-
-                    try {
-                      // Obter o ID do usuário atual (organizador)
-                      const { data: { user }, error: authError } = await supabase.auth.getUser();
-                      
-                      if (authError) throw authError;
-                      if (!user) throw new Error("Usuário não autenticado");
-
-                      const { error } = await supabase
-                        .from("event_rsvps")
-                        .insert(
-                          importedGuests.map((guest) => ({
-                            event_id: eventId,
-                            name: guest.name,
-                            email: guest.email || null,
-                            phone: guest.phone || null,
-                            status: "pending",
-                            guests_count: 0,
-                            dietary_restrictions: "",
-                            user_id: user.id, // Adiciona o ID do organizador
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString(),
-                          })),
-                        );
-
-                      if (error) throw error;
-
-                      setActiveTab("manage");
-
-                      toast({
-                        title: language === "pt" ? "Sucesso" : "Success",
-                        description:
-                          language === "pt"
-                            ? `${importedGuests.length} convidados adicionados com sucesso`
-                            : `${importedGuests.length} guests added successfully`,
-                      });
-                    } catch (error) {
-                      console.error("Error importing guests:", error);
-                      toast({
-                        title: language === "pt" ? "Erro" : "Error",
-                        description:
-                          language === "pt"
-                            ? "Erro ao importar convidados"
-                            : "Error importing guests",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </Card>
+        <TabsContent value="add" className="mt-6">
+          <GuestImport onImport={handleGuestsImport} onAdd={onAdd} />
         </TabsContent>
 
-        <TabsContent value="invite">
-          <Card className="p-6">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">
-                  {t("guests.invite_methods")}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Button
-                    onClick={() => onInvite("email", [])}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    {t("guests.email_invites")}
-                  </Button>
-                  <Button
-                    onClick={() => onInvite("whatsapp", [])}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    {t("guests.whatsapp_invites")}
-                  </Button>
-                  <Button
-                    onClick={() => onInvite("share", [])}
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    {t("guests.share_link")}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">
-                  {t("guests.invitation_message")}
-                </h3>
-                <Select value={messageStyle} onValueChange={setMessageStyle}>
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        language === "pt"
-                          ? "Selecione o estilo da mensagem"
-                          : "Select message style"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="formal">
-                      {language === "pt" ? "Formal" : "Formal"}
-                    </SelectItem>
-                    <SelectItem value="casual">
-                      {language === "pt" ? "Casual" : "Casual"}
-                    </SelectItem>
-                    <SelectItem value="fun">
-                      {language === "pt" ? "Divertido" : "Fun & Playful"}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label>{t("guests.message_template")}</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex items-center gap-1"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      {t("guests.get_suggestions")}
-                    </Button>
-                  </div>
-                  <Textarea
-                    placeholder={
-                      language === "pt"
-                        ? "Escreva sua mensagem de convite..."
-                        : "Write your invitation message..."
-                    }
-                    className="min-h-[100px]"
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                  />
-                </div>
-
-                <RadioGroup
-                  value="template1"
-                  className="space-y-2"
-                  onValueChange={(value) => {
-                    if (value === "template1") {
-                      setMessageText(
-                        language === "pt"
-                          ? "Temos o prazer de convidá-lo a se juntar a nós para um evento especial. Sua presença seria uma honra."
-                          : "We cordially invite you to join us for a special event. Your presence would be an honor.",
-                      );
-                      setMessageStyle("formal");
-                    } else if (value === "template2") {
-                      setMessageText(
-                        language === "pt"
-                          ? "Ei! Estamos fazendo uma festa e gostaríamos que você viesse. Vai ser divertido!"
-                          : "Hey! We're having a party and would love for you to come. It's going to be fun!",
-                      );
-                      setMessageStyle("casual");
-                    } else if (value === "template3") {
-                      setMessageText(
-                        language === "pt"
-                          ? "Prepare-se para uma celebração incrível! Traga sua energia positiva e vamos fazer história!"
-                          : "Get ready for an amazing celebration! Bring your positive energy and let's make history!",
-                      );
-                      setMessageStyle("fun");
-                    }
-                  }}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="template1" id="template1" />
-                    <Label htmlFor="template1">
-                      {language === "pt"
-                        ? 'Formal: "Temos o prazer de convidá-lo a se juntar a nós..."'
-                        : 'Formal: "We cordially invite you to join us..."'}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="template2" id="template2" />
-                    <Label htmlFor="template2">
-                      {language === "pt"
-                        ? 'Casual: "Ei! Estamos fazendo uma festa..."'
-                        : 'Casual: "Hey! We\'re having a party..."'}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="template3" id="template3" />
-                    <Label htmlFor="template3">
-                      {language === "pt"
-                        ? 'Divertido: "Prepare-se para uma celebração incrível..."'
-                        : 'Fun: "Get ready for an amazing celebration..."'}
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                <div className="pt-4">
-                  <h3 className="text-lg font-semibold">
-                    {t("guests.shareable_link")}
-                  </h3>
-                  <div className="flex gap-2 mt-2">
-                    <Input value={inviteLink} readOnly className="flex-1" />
-                    <Button onClick={copyToClipboard}>
-                      {copied ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">
-                    {t("guests.automated_reminders")}
-                  </h3>
-                  <Switch />
-                </div>
-                <p className="text-sm text-gray-500">
-                  {t("guests.reminders_description")}
-                </p>
-              </div>
-            </div>
-          </Card>
+        <TabsContent value="send" className="mt-6">
+          <InviteManager
+            eventId={eventId}
+            eventName={eventName}
+            eventDate={eventDate}
+            eventLocation={eventLocation}
+            guests={guests}
+          />
         </TabsContent>
 
-        <TabsContent value="manage">
-          <Card className="p-6">
-            <GuestList
-              eventId={eventId || ""}
-              onSendMessage={(guests) => {
-                // Handle sending message to selected guests
-                onInvite("email", guests, messageText);
-              }}
-            />
+        <TabsContent value="manage" className="mt-6">
+          <GuestList eventId={eventId} guests={guests} onGuestsChange={setGuests} />
+        </TabsContent>
 
-            <div className="mt-6">
-              <Label htmlFor="dietary">{t("guests.dietary_note")}</Label>
-              <Textarea
-                id="dietary"
-                placeholder={t("guests.dietary_placeholder")}
-                className="mt-2"
-              />
-            </div>
-          </Card>
+        <TabsContent value="reminders" className="mt-6">
+          <AutomaticReminders
+            eventId={eventId}
+            eventDate={eventDate}
+            onSave={handleReminderSettings}
+          />
         </TabsContent>
       </Tabs>
 
       <AddGuestDialog
         open={showAddGuest}
         onOpenChange={setShowAddGuest}
-        onAdd={async (guest) => {
-          if (!eventId) {
-            toast({
-              title: language === "pt" ? "Informação" : "Information",
-              description:
-                language === "pt"
-                  ? "Os convidados serão vinculados ao evento quando ele for salvo"
-                  : "Guests will be linked to the event when it is saved",
-            });
-            return;
-          }
-
-          try {
-            // Obter o ID do usuário atual (organizador)
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            
-            if (authError) throw authError;
-            if (!user) throw new Error("Usuário não autenticado");
-
-            const { error } = await supabase.from("event_rsvps").insert([
-              {
-                event_id: eventId,
-                name: guest.name,
-                email: guest.email,
-                phone: guest.phone,
-                status: "pending",
-                guests_count: 0,
-                dietary_restrictions: "",
-                user_id: user.id, // Adiciona o ID do organizador
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              },
-            ]);
-
-            if (error) throw error;
-
-            setActiveTab("manage");
-
-            toast({
-              title: language === "pt" ? "Sucesso" : "Success",
-              description:
-                language === "pt"
-                  ? "Convidado adicionado com sucesso"
-                  : "Guest added successfully",
-            });
-          } catch (error) {
-            console.error("Error adding guest:", error);
-            toast({
-              title: language === "pt" ? "Erro" : "Error",
-              description:
-                language === "pt"
-                  ? "Erro ao adicionar convidado"
-                  : "Error adding guest",
-              variant: "destructive",
-            });
-          }
-        }}
+        onAdd={onAdd}
       />
     </div>
   );

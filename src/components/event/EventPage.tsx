@@ -38,11 +38,12 @@ export default function EventPage() {
   useEffect(() => {
     setPageTitle("Gerenciar Evento");
   }, []);
-  const { id } = useParams();
+  const { shortId } = useParams();
   const [event, setEvent] = useState<
     EventPageProps["event"] & { 
       confirmedGuests?: number;
       short_id?: string;
+      id?: string;
     }
   >();
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,7 @@ export default function EventPage() {
   const [showSendMessage, setShowSendMessage] = useState(false);
 
   const fetchEvent = async () => {
-    if (!id) return;
+    if (!shortId) return;
 
     const { data: event } = await supabase
       .from("events")
@@ -63,14 +64,14 @@ export default function EventPage() {
         event_co_organizers (*)
       `,
       )
-      .eq("id", id)
+      .eq("short_id", shortId)
       .single();
 
     // Get confirmed guests count
     const { count: confirmedGuests } = await supabase
       .from("event_rsvps")
       .select("id", { count: "exact" })
-      .eq("event_id", id)
+      .eq("event_id", event.id)
       .eq("status", "confirmed");
 
     if (event) {
@@ -86,6 +87,7 @@ export default function EventPage() {
         co_organizers: event.event_co_organizers,
         confirmedGuests: confirmedGuests || 0,
         short_id: event.short_id,
+        id: event.id,
         organizer: {
           name: "Você",
           email: "seu@email.com",
@@ -97,7 +99,7 @@ export default function EventPage() {
 
   useEffect(() => {
     fetchEvent();
-  }, [id]);
+  }, [shortId]);
 
   if (loading) {
     return <LoadingPage message="Carregando" />;
@@ -203,7 +205,7 @@ export default function EventPage() {
 
           {/* Event Dashboard */}
           <EventDashboard
-            eventId={id}
+            eventId={event.id}
             eventTitle={event.title}
             eventDate={event.date}
             onManageGuests={() => setShowGuestManagement(true)}
@@ -214,14 +216,14 @@ export default function EventPage() {
       {/* Dialogs */}
       <Dialog open={showGuestManagement} onOpenChange={setShowGuestManagement}>
         <DialogContent className="max-w-4xl">
-          <GuestManagement eventId={id} />
+          <GuestManagement eventId={event.id} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={showShareInvites} onOpenChange={setShowShareInvites}>
         <DialogContent className="max-w-4xl">
           <ShareInvites
-            eventId={id}
+            eventId={event.id}
             saveTheDate={{
               message:
                 event?.description ||
@@ -234,7 +236,7 @@ export default function EventPage() {
       <SendMessageDialog
         open={showSendMessage}
         onOpenChange={setShowSendMessage}
-        eventId={id}
+        eventId={event.id}
       />
 
       <EventManagementDialog
@@ -242,7 +244,7 @@ export default function EventPage() {
         onOpenChange={setShowManagement}
         onSave={fetchEvent}
         event={{
-          id: id,
+          id: event.id,
           title: event.title,
           description: event.description,
           date: event.date,

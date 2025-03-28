@@ -33,7 +33,7 @@ function App() {
             }
           />
           <Route
-            path="/events/:id"
+            path="/events/:shortId"
             element={
               <AuthGuard>
                 <EventPage />

@@ -103,32 +103,58 @@ const EventCreationWizard = ({
 
   const createTemporaryEvent = async () => {
     try {
-      // Check if we already have a temporary event ID in localStorage
+      // Verificar se já existe um ID temporário no localStorage
       const savedTempEventId = localStorage.getItem("temporaryEventId");
       if (savedTempEventId) {
-        console.log("Using existing temporary event ID:", savedTempEventId);
-        setEventData((prev) => ({
-          ...prev,
-          temporaryEventId: savedTempEventId,
-        }));
-        return;
+        // Verificar se o evento temporário ainda existe
+        const { data: existingEvent } = await supabase
+          .from("events")
+          .select("id")
+          .eq("id", savedTempEventId)
+          .single();
+
+        if (existingEvent) {
+          console.log("Usando evento temporário existente:", savedTempEventId);
+          setEventData((prev) => ({
+            ...prev,
+            temporaryEventId: savedTempEventId,
+          }));
+          return;
+        } else {
+          // Se o evento não existe mais, limpar o localStorage
+          localStorage.removeItem("temporaryEventId");
+        }
       }
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const userId = session?.user?.id || "temp-user-id";
+      const userId = session?.user?.id;
+      
+      // Só criar evento temporário se o usuário estiver logado
+      if (!userId) {
+        console.log("Usuário não logado, pulando criação de evento temporário");
+        return;
+      }
+
       const today = new Date();
       const formattedDate = format(today, "yyyy-MM-dd");
+
+      // Limpar eventos temporários antigos deste usuário
+      await supabase
+        .from("events")
+        .delete()
+        .eq("user_id", userId)
+        .eq("is_temporary", true);
 
       const { data: event, error } = await supabase
         .from("events")
         .insert([
           {
-            title: "Temporary event",
+            title: "Rascunho de evento",
             description: "",
-            event_type: "temp",
+            event_type: "draft",
             date: formattedDate,
             start_date: formattedDate,
             time: "19:00",
@@ -138,21 +164,21 @@ const EventCreationWizard = ({
             created_by: userId,
             is_temporary: true,
             short_id: generateShortId(),
-            status: "active",
+            status: "draft",
           },
         ])
         .select()
         .single();
 
       if (error) {
-        console.error("Error creating temporary event:", error);
+        console.error("Erro ao criar evento temporário:", error);
         return;
       }
 
       localStorage.setItem("temporaryEventId", event.id);
       setEventData((prev) => ({ ...prev, temporaryEventId: event.id }));
     } catch (error) {
-      console.error("Error in createTemporaryEvent:", error);
+      console.error("Erro em createTemporaryEvent:", error);
     }
   };
 
@@ -281,7 +307,7 @@ const EventCreationWizard = ({
         return;
       }
 
-      navigate(`/events/${event.id}`);
+      navigate(`/events/${event.short_id}`);
     } catch (error) {
       console.error("Error in createEvent:", error);
     }

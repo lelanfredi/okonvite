@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,9 +33,40 @@ export default function ShareEventDialog({
   const [personalMessage, setPersonalMessage] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+  const [shortId, setShortId] = useState("");
+
+  useEffect(() => {
+    if (open && eventId) {
+      fetchShortId();
+    }
+  }, [open, eventId]);
+
+  const fetchShortId = async () => {
+    try {
+      const { data: event, error } = await supabase
+        .from("events")
+        .select("short_id")
+        .eq("id", eventId)
+        .single();
+
+      if (error) throw error;
+
+      if (event?.short_id) {
+        setShortId(event.short_id);
+      }
+    } catch (error) {
+      console.error("Error fetching short_id:", error);
+    }
+  };
+
+  const getEventUrl = () => {
+    return shortId
+      ? `${window.location.origin}/e/${shortId}`
+      : eventUrl;
+  };
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareLink || eventUrl);
+    navigator.clipboard.writeText(shareLink || getEventUrl());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -63,8 +94,9 @@ export default function ShareEventDialog({
 
       if (error) throw error;
 
-      // Create the shareable URL
-      const shareableUrl = `${eventUrl}?ref=${shareCode}`;
+      // Create the shareable URL with short_id if available
+      const baseUrl = getEventUrl();
+      const shareableUrl = `${baseUrl}?ref=${shareCode}`;
       setShareLink(shareableUrl);
     } catch (error) {
       console.error("Error generating share link:", error);
@@ -78,8 +110,8 @@ export default function ShareEventDialog({
 
   const shareViaWhatsApp = () => {
     const text = personalMessage
-      ? `${personalMessage}\n\n${eventTitle}\n${shareLink || eventUrl}`
-      : `Olá! Gostaria de convidar você para o evento "${eventTitle}". Confira os detalhes aqui: ${shareLink || eventUrl}`;
+      ? `${personalMessage}\n\n${eventTitle}\n${shareLink || getEventUrl()}`
+      : `Olá! Gostaria de convidar você para o evento "${eventTitle}". Confira os detalhes aqui: ${shareLink || getEventUrl()}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
@@ -87,8 +119,8 @@ export default function ShareEventDialog({
   const shareViaEmail = () => {
     const subject = `Convite para ${eventTitle}`;
     const body = personalMessage
-      ? `${personalMessage}\n\n${eventTitle}\n${shareLink || eventUrl}`
-      : `Olá! Gostaria de convidar você para o evento "${eventTitle}". Confira os detalhes aqui: ${shareLink || eventUrl}`;
+      ? `${personalMessage}\n\n${eventTitle}\n${shareLink || getEventUrl()}`
+      : `Olá! Gostaria de convidar você para o evento "${eventTitle}". Confira os detalhes aqui: ${shareLink || getEventUrl()}`;
 
     window.open(
       `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
@@ -132,7 +164,7 @@ export default function ShareEventDialog({
               <div className="flex space-x-2">
                 <Input
                   id="share-link"
-                  value={shareLink || eventUrl}
+                  value={shareLink || getEventUrl()}
                   readOnly
                   className="flex-1"
                 />

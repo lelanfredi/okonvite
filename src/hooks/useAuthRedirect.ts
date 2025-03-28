@@ -40,17 +40,24 @@ export function useAuthRedirect() {
         return;
       }
 
+      // Verifica se é uma rota de evento público usando short_id
+      const isPublicEventRoute = pathname.match(/^\/e\/[a-zA-Z0-9-]+$/);
+      
+      // Se for uma rota de evento público, permite acesso sem autenticação
+      if (isPublicEventRoute) {
+        console.log("Allowing access to public event page");
+        return;
+      }
+
       const isProtectedRoute = authConfig.protectedRoutes.some((route) =>
         pathname.startsWith(route),
       );
       const isPublicOnlyRoute = authConfig.publicOnlyRoutes.some((route) =>
         pathname.startsWith(route),
       );
-      // Verifica se é uma rota pública, incluindo rotas de evento público
-      const isPublicRoute =
-        authConfig.publicRoutes?.some((route) => pathname.startsWith(route)) ||
-        pathname.match(/^\/e\/[a-zA-Z0-9-]+$/) ||
-        false;
+      const isPublicRoute = authConfig.publicRoutes.some((route) =>
+        pathname.startsWith(route),
+      );
 
       if (session && isPublicOnlyRoute) {
         console.log("Redirecting from public-only route to dashboard");

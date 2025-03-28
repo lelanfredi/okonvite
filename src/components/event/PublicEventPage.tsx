@@ -43,31 +43,43 @@ export default function PublicEventPage() {
   const { shortId } = useParams();
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showRsvpDialog, setShowRsvpDialog] = useState(false);
 
   useEffect(() => {
     const fetchEvent = async () => {
-      if (!shortId) return;
-
-      const { data: event, error } = await supabase
-        .from("events")
-        .select(`
-          *,
-          event_settings (*)
-        `)
-        .eq("short_id", shortId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching event:", error);
+      if (!shortId) {
+        setError("ID do evento não encontrado");
         setLoading(false);
         return;
       }
 
-      if (event) {
+      try {
+        const { data: event, error: supabaseError } = await supabase
+          .from("events")
+          .select(`
+            *,
+            event_settings (*)
+          `)
+          .eq("short_id", shortId)
+          .single();
+
+        if (supabaseError) {
+          throw supabaseError;
+        }
+
+        if (!event) {
+          throw new Error("Evento não encontrado");
+        }
+
         setEvent(event);
+        setPageTitle(event.title);
+      } catch (err) {
+        console.error("Error fetching event:", err);
+        setError(err instanceof Error ? err.message : "Erro ao carregar o evento");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchEvent();
@@ -77,12 +89,17 @@ export default function PublicEventPage() {
     return <LoadingPage message="Carregando evento..." />;
   }
 
-  if (!event) {
+  if (error || !event) {
     return (
       <div className="max-w-4xl mx-auto p-4">
-        <h1 className="text-2xl font-bold text-center text-red-600">
-          Evento não encontrado
-        </h1>
+        <Card className="p-6 text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            {error || "Evento não encontrado"}
+          </h1>
+          <p className="text-gray-600">
+            Verifique se o link está correto ou tente novamente mais tarde.
+          </p>
+        </Card>
       </div>
     );
   }
@@ -107,18 +124,24 @@ export default function PublicEventPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold text-purple-700">Data e Hora</h2>
-              <p className="text-gray-700">
-                {format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                {" às "}
-                {event.time}
-              </p>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-purple-600" />
+              <div>
+                <h2 className="text-lg font-semibold text-purple-700">Data e Hora</h2>
+                <p className="text-gray-700">
+                  {format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  {" às "}
+                  {event.time}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h2 className="text-lg font-semibold text-purple-700">Local</h2>
-              <p className="text-gray-700">{event.location}</p>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-purple-600" />
+              <div>
+                <h2 className="text-lg font-semibold text-purple-700">Local</h2>
+                <p className="text-gray-700">{event.location}</p>
+              </div>
             </div>
           </div>
 
